@@ -333,9 +333,9 @@ async fn main() -> Result<()> {
         )
         .layer(Extension(app_state));
 
-    info!("listening on 0.0.0.0:3000");
+    info!("listening on 0.0.0.0:3100");
 
-    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
+    axum::Server::bind(&"0.0.0.0:3100".parse().unwrap())
         .serve(app.into_make_service())
         .await
         .unwrap();
