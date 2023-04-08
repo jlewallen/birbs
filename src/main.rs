@@ -6,7 +6,9 @@ use axum::{
     Extension, Json, Router,
 };
 use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+use chrono_tz::US::Pacific;
 use rusqlite::Connection;
+use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
 use tower_http::{
     cors::{Any, CorsLayer},
@@ -15,16 +17,9 @@ use tower_http::{
 use tracing::info;
 use tracing_subscriber::prelude::*;
 
-struct BirdDb {
-    conn: Connection,
-}
-
 struct BirdDateAndTime {
     date_time: DateTime<Utc>,
 }
-
-use chrono_tz::US::Pacific;
-use serde::Serialize;
 
 impl BirdDateAndTime {
     pub fn new_naive(date: NaiveDate, time: NaiveTime) -> Result<Self> {
@@ -38,6 +33,7 @@ impl BirdDateAndTime {
             date_time: riverside.with_timezone(&Utc),
         })
     }
+
     pub fn new(date: String, time: String) -> Result<Self> {
         let date_only = NaiveDate::parse_from_str(&date, "%Y-%m-%d")?;
         let time_only = NaiveTime::parse_from_str(&time, "%H:%M:%S")?;
@@ -101,6 +97,10 @@ struct FilesFor {
     when: DateTime<Utc>,
     confidence: f32,
     file_name: String,
+}
+
+struct BirdDb {
+    conn: Connection,
 }
 
 impl BirdDb {
