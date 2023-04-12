@@ -1,7 +1,8 @@
 <script>
   import Counter from "./Counter.svelte";
-  // import welcome from "$lib/images/svelte-welcome.webp";
-  // import welcome_fallback from "$lib/images/svelte-welcome.png";
+
+  /** @type {import('./$types').PageData} */
+  export let data;
 </script>
 
 <svelte:head>
@@ -11,6 +12,28 @@
 
 <section>
   <h1>Birbs</h1>
+
+  {#await data.query}
+    Loading...
+  {:then value}
+    {#each data.query as day}
+      <div>
+        <h4>{day.date.toDateString()}</h4>
+        <div class="birds">
+          {#each day.birds as bird}
+            <div class="bird">
+              <span class="common-name">
+                <a href="#">{bird.common_name}</a> ({bird.total} / {bird
+                  .average_confidence.display}) |
+              </span>
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/each}
+  {:catch error}
+    {error.message}
+  {/await}
 
   <Counter />
 </section>
@@ -26,5 +49,10 @@
 
   h1 {
     width: 100%;
+  }
+
+  .birds .bird {
+    display: inline-block;
+    margin: 0.25em;
   }
 </style>
