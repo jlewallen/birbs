@@ -11,7 +11,12 @@ axum = "0.6.12"
 axum-macros = "0.3.7"
 chrono = { version = "0.4.24", features = ["serde"] }
 chrono-tz = "0.8.1"
+futures = "0.3.28"
+http-cache = "0.11.0"
+http-cache-reqwest = "0.9.0"
 just = "1.13.0"
+reqwest = { version = "0.11.16", features = ["json"] }
+reqwest-middleware = "0.2.1"
 rusqlite = "0.29.0"
 serde = { version = "1.0.159", features = ["derive"] }
 serde_json = "1.0.95"
@@ -19,3 +24,4 @@ tokio = { version = "1.27.0", features = ["full"] }
 tower-http = { version = "0.4.0", features = ["fs", "trace", "cors"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
+uri-builder = "0.1.0"

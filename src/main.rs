@@ -17,6 +17,8 @@ use tower_http::{
 use tracing::info;
 use tracing_subscriber::prelude::*;
 
+mod flickr;
+
 struct BirdDateAndTime {
     date_time: DateTime<Utc>,
 }
@@ -97,6 +99,8 @@ struct FilesFor {
     when: DateTime<Utc>,
     confidence: f32,
     file_name: String,
+    spectrogram_url: String,
+    audio_url: String,
 }
 
 struct BirdDb {
@@ -238,10 +242,34 @@ impl BirdDb {
                 ))
             })?;
 
+            let date_string = when.date_time.format("%Y-%m-%d");
+            let file_name: String = row.get(2)?;
+
+            fn urlify_string(i: &str) -> String {
+                i.replace(" ", "_")
+            }
+
+            let audio_url = || -> Result<String, rusqlite::Error> {
+                Ok(format!(
+                    "http://192.168.0.164/By_Date/{}/{}/{}",
+                    &date_string,
+                    urlify_string(&common_name),
+                    &file_name
+                ))
+            };
+
+            let spectrogram_url =
+                || -> Result<String, rusqlite::Error> { Ok(format!("{}.png", audio_url()?)) };
+
+            let spectrogram_url = spectrogram_url()?;
+            let audio_url = audio_url()?;
+
             Ok(FilesFor {
                 when: when.into(),
-                file_name: row.get(2)?,
+                file_name: file_name,
                 confidence: row.get(3)?,
+                spectrogram_url,
+                audio_url,
             })
         })?;
 
@@ -288,10 +316,32 @@ async fn files_for(Path(common_name): Path<String>) -> Result<Json<Vec<FilesFor>
     ))
 }
 
+async fn photo_for(Path(common_name): Path<String>) -> Result<Vec<u8>, StatusCode> {
+    let flickr = flickr::FlickrClient::new(
+        &get_flickr_api_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    );
+    let mut photos = flickr
+        .search(&common_name)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    match photos.pop() {
+        Some(photo) => Ok(flickr
+            .image(&photo)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?),
+        None => Err(StatusCode::NOT_FOUND),
+    }
+}
+
 struct AppState {}
 
 fn get_rust_log() -> String {
     std::env::var("RUST_LOG").unwrap_or_else(|_| "birbs=info,tower_http=debug".into())
+}
+
+fn get_flickr_api_key() -> Result<String> {
+    Ok(std::env::var("FLICKR_API_KEY")?)
 }
 
 #[tokio::main]
@@ -308,6 +358,11 @@ async fn main() -> Result<()> {
     let _by_day_and_common_name = db.by_day_and_common_name()?;
     let _common_name_to_scientific_name = db.common_name_to_scientific_name()?;
     let _files_for = db.files_for("American Crow")?;
+
+    // let flickr = flickr::FlickrClient::new(&get_flickr_api_key()?);
+    // let photos = flickr.search("Chestnut-rumped Thornbill").await?;
+    // use futures::future;
+    // let _photos = future::try_join_all(photos.iter().map(|p| flickr.image(p))).await?;
 
     let app_state = Arc::new(AppState {});
 
@@ -326,6 +381,7 @@ async fn main() -> Result<()> {
         .route("/by-common-name.json", get(by_common_name))
         .route("/by-day-and-common-name.json", get(by_day_and_common_name))
         .route("/:common-name/files.json", get(files_for))
+        .route("/:common-name/photo.png", get(photo_for))
         .layer(cors)
         .layer(
             TraceLayer::new_for_http()

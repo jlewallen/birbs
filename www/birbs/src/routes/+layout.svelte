@@ -1,6 +1,9 @@
 <script>
   import Header from "./Header.svelte";
   import "./styles.css";
+
+  /** @type {import('./$types').LayoutData} */
+  /* export let data; */
 </script>
 
 <div class="app">
@@ -41,9 +44,11 @@
     padding: 12px;
   }
 
+  /*
   footer a {
     font-weight: bold;
   }
+  */
 
   @media (min-width: 480px) {
     footer {

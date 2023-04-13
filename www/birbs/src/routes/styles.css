@@ -17,10 +17,16 @@
 }
 
 body {
+	background-color: rgb(119, 196, 135);
+	/* #77C487 */
+}
+
+body {
 	min-height: 100vh;
 	margin: 0;
 	background-attachment: fixed;
-	background-color: var(--color-bg-1);
+	/* background-color: var(--color-bg-1); */
+	/*
 	background-size: 100vw 100vh;
 	background-image: radial-gradient(
 			50% 50% at 50% 50%,
@@ -28,6 +34,7 @@ body {
 			rgba(255, 255, 255, 0) 100%
 		),
 		linear-gradient(180deg, var(--color-bg-0) 0%, var(--color-bg-1) 15%, var(--color-bg-2) 50%);
+		*/
 }
 
 h1,
@@ -40,10 +47,12 @@ p {
 	line-height: 1.5;
 }
 
+/*
 a {
 	color: var(--color-theme-1);
 	text-decoration: none;
 }
+*/
 
 a:hover {
 	text-decoration: underline;
@@ -104,4 +113,36 @@ button:focus:not(:focus-visible) {
 	position: absolute;
 	width: 1px;
 	white-space: nowrap;
+}
+
+a {
+	_color: #8777c3;
+	color: #1e4727;
+	_color: #2e6a3a;
+}
+
+/* unvisited link */
+a:link {
+	_color: #8777c3;
+	color: #1e4727;
+	_color: #2e6a3a;
+}
+
+/* visited link */
+a:visited {
+	_color: #8777c3;
+	_color: #1e4727;
+	color: #2e6a3a;
+}
+
+/* mouse over link */
+a:hover {
+	_color: #8777c3;
+	color: #1e4727;
+}
+
+/* selected link */
+a:active {
+	_color: #8777c3;
+	color: #1e4727;
 }

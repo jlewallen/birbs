@@ -6,3 +6,6 @@
 <div class="text-column">
   <h1>About Birbs</h1>
 </div>
+
+<style>
+</style>

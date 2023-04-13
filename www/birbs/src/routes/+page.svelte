@@ -1,6 +1,4 @@
 <script>
-  import Counter from "./Counter.svelte";
-
   /** @type {import('./$types').PageData} */
   export let data;
 </script>
@@ -11,20 +9,24 @@
 </svelte:head>
 
 <section>
-  <h1>Birbs</h1>
-
   {#await data.query}
     Loading...
   {:then value}
     {#each data.query as day}
       <div>
         <h4>{day.date.toDateString()}</h4>
+        <div>
+          <img
+            src={day.histogram_url}
+            alt="Histogram of daily bird activity. Shame on me for not writing a meaningful toString or something to list the top values. At any rate, the table below will show the same information."
+          />
+        </div>
         <div class="birds">
           {#each day.birds as bird}
             <div class="bird">
               <span class="common-name">
-                <a href="#">{bird.common_name}</a> ({bird.total} / {bird
-                  .average_confidence.display}) |
+                <a href="/birds/{bird.common_name}">{bird.common_name}</a>
+                ({bird.total} / {bird.average_confidence.display}) |
               </span>
             </div>
           {/each}
@@ -34,8 +36,6 @@
   {:catch error}
     {error.message}
   {/await}
-
-  <Counter />
 </section>
 
 <style>
@@ -45,10 +45,6 @@
     justify-content: center;
     align-items: center;
     flex: 0.6;
-  }
-
-  h1 {
-    width: 100%;
   }
 
   .birds .bird {

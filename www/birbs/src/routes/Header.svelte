@@ -13,12 +13,9 @@
     </svg>
     <ul>
       <li aria-current={$page.url.pathname === "/" ? "page" : undefined}>
-        <a href="/">Home</a>
+        <a href="/">30-Days</a>
       </li>
       <li aria-current={$page.url.pathname === "/about" ? "page" : undefined}>
-        <a href="/about">About</a>
-      </li>
-      <li aria-current={$page.url.pathname == "/about" ? "page" : undefined}>
         <a href="/about">About</a>
       </li>
     </ul>
@@ -34,6 +31,7 @@
   header {
     display: flex;
     justify-content: space-between;
+    background-color: rgb(119, 196, 135);
   }
 
   .corner {
@@ -41,6 +39,7 @@
     height: 3em;
   }
 
+  /*
   .corner a {
     display: flex;
     align-items: center;
@@ -54,6 +53,7 @@
     height: 2em;
     object-fit: contain;
   }
+  */
 
   nav {
     display: flex;
