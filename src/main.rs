@@ -6,7 +6,7 @@ use axum::{
     Extension, Json, Router,
 };
 use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
-use chrono_tz::US::Pacific;
+use chrono_tz::{Tz, US::Pacific};
 use rusqlite::Connection;
 use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
@@ -20,7 +20,8 @@ use tracing_subscriber::prelude::*;
 mod flickr;
 
 struct BirdDateAndTime {
-    date_time: DateTime<Utc>,
+    utc: DateTime<Utc>,
+    local: DateTime<Tz>,
 }
 
 impl BirdDateAndTime {
@@ -32,7 +33,8 @@ impl BirdDateAndTime {
         let riverside = best_case.or_else(|| earliest).expect("no idea time wise");
 
         Ok(Self {
-            date_time: riverside.with_timezone(&Utc),
+            utc: riverside.with_timezone(&Utc),
+            local: riverside,
         })
     }
 
@@ -50,7 +52,7 @@ impl BirdDateAndTime {
 
 impl Into<DateTime<Utc>> for BirdDateAndTime {
     fn into(self) -> DateTime<Utc> {
-        self.date_time
+        self.utc
     }
 }
 
@@ -242,7 +244,7 @@ impl BirdDb {
                 ))
             })?;
 
-            let date_string = when.date_time.format("%Y-%m-%d");
+            let date_string = when.local.format("%Y-%m-%d");
             let file_name: String = row.get(2)?;
 
             fn urlify_string(i: &str) -> String {

@@ -25,7 +25,6 @@
         <div>
           {file.when}
           {file.confidence}
-          {file.file_name}
 
           <!-- svelte-ignore a11y-media-has-caption -->
           <video
