@@ -32,7 +32,7 @@ impl FlickrClient {
     pub fn new(api_key: &str) -> Self {
         let http = ClientBuilder::new(reqwest::Client::new())
             .with(Cache(HttpCache {
-                mode: CacheMode::ForceCache,
+                mode: CacheMode::OnlyIfCached,
                 manager: CACacheManager::default(),
                 options: None,
             }))
