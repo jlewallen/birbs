@@ -111,14 +111,10 @@ struct FilesFor {
 }
 
 impl FilesFor {
-    fn into_with_available(&self, available: bool) -> Self {
+    fn into_with_available(self, available: bool) -> Self {
         Self {
-            when: self.when.clone(),
-            confidence: self.confidence,
-            file_name: self.file_name.clone(),
-            spectrogram_url: self.spectrogram_url.clone(),
-            audio_url: self.audio_url.clone(),
             available: Some(available),
+            ..self
         }
     }
 }
