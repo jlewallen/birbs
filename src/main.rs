@@ -7,6 +7,10 @@ use axum::{
 };
 use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use chrono_tz::{Tz, US::Pacific};
+
+use http_cache::{CACacheManager, CacheMode, HttpCache};
+use http_cache_reqwest::Cache;
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use rusqlite::Connection;
 use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
@@ -96,13 +100,27 @@ struct DetectionsByTimeAndCommonName {
     average_confidence: f32,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 struct FilesFor {
     when: DateTime<Utc>,
     confidence: f32,
     file_name: String,
     spectrogram_url: String,
     audio_url: String,
+    available: Option<bool>,
+}
+
+impl FilesFor {
+    fn into_with_available(&self, available: bool) -> Self {
+        Self {
+            when: self.when.clone(),
+            confidence: self.confidence,
+            file_name: self.file_name.clone(),
+            spectrogram_url: self.spectrogram_url.clone(),
+            audio_url: self.audio_url.clone(),
+            available: Some(available),
+        }
+    }
 }
 
 struct BirdDb {
@@ -265,20 +283,25 @@ impl BirdDb {
 
             let spectrogram_url = spectrogram_url()?;
             let audio_url = audio_url()?;
+            let when = when.into();
+            let confidence = row.get(3)?;
 
             Ok(FilesFor {
-                when: when.into(),
-                file_name: file_name,
-                confidence: row.get(3)?,
+                when,
+                file_name,
+                confidence,
                 spectrogram_url,
                 audio_url,
+                available: None,
             })
         })?;
 
-        Ok(entities
+        let files_for = entities
             .into_iter()
-            .map(|row| Ok(row?)) // Yeah yeah yeah TODO
-            .collect::<Result<Vec<FilesFor>>>()?)
+            .map(|row| Ok(row?)) // TODO Yeah, gross. Error types?
+            .collect::<Result<Vec<FilesFor>>>()?;
+
+        Ok(files_for)
     }
 }
 
@@ -309,18 +332,56 @@ async fn by_day_and_common_name() -> Result<Json<Vec<DetectionsByTimeAndCommonNa
     ))
 }
 
+async fn check_file_available(file: FilesFor) -> FilesFor {
+    match new_http_client().head(&file.spectrogram_url).send().await {
+        Ok(r) => match r.status() {
+            StatusCode::OK => file.into_with_available(true),
+            _ => file.into_with_available(false),
+        },
+        Err(_) => file.into_with_available(false),
+    }
+}
+
+async fn check_available(files: Vec<FilesFor>) -> Result<Vec<FilesFor>> {
+    use futures::StreamExt;
+    use tokio_stream::{self as stream};
+
+    const CONCURRENT_REQUESTS: usize = 5;
+    Ok(stream::iter(files.into_iter())
+        .map(|row| check_file_available(row))
+        .buffered(CONCURRENT_REQUESTS)
+        .collect::<Vec<_>>()
+        .await)
+}
+
 #[axum_macros::debug_handler]
 async fn files_for(Path(common_name): Path<String>) -> Result<Json<Vec<FilesFor>>, StatusCode> {
     let db = BirdDb::new().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(Json(
-        db.files_for(&common_name)
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
-    ))
+    let files = db
+        .files_for(&common_name)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let files = check_available(files)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(files))
+}
+
+fn new_http_client() -> ClientWithMiddleware {
+    return ClientBuilder::new(reqwest::Client::new())
+        .with(Cache(HttpCache {
+            mode: CacheMode::ForceCache,
+            manager: CACacheManager::default(),
+            options: None,
+        }))
+        .build();
 }
 
 async fn photo_for(Path(common_name): Path<String>) -> Result<Vec<u8>, StatusCode> {
     let flickr = flickr::FlickrClient::new(
         &get_flickr_api_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+        new_http_client(),
     );
     let mut photos = flickr
         .search(&common_name)

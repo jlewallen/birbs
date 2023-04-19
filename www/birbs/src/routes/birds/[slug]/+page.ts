@@ -17,6 +17,7 @@ export async function load({ params }) {
           file_name: string;
           spectrogram_url: string;
           audio_url: string;
+          available: boolean;
         } => {
           return {
             when: new Date(row.when),
@@ -24,6 +25,7 @@ export async function load({ params }) {
             file_name: row.file_name,
             spectrogram_url: row.spectrogram_url,
             audio_url: row.audio_url,
+            available: row.available,
           };
         })
         .orderBy((row) => row.when)

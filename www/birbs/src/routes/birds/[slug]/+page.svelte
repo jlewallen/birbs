@@ -22,19 +22,21 @@
       Loading...
     {:then value}
       {#each data.files as file}
-        <div>
-          {file.when}
-          {file.confidence}
+        {#if file.available}
+          <div>
+            {file.when}
+            {file.confidence}
 
-          <!-- svelte-ignore a11y-media-has-caption -->
-          <video
-            style="margin-top: 10px"
-            controls
-            poster={file.spectrogram_url}
-            preload="none"
-            title={file.audio_url}><source src={file.audio_url} /></video
-          >
-        </div>
+            <!-- svelte-ignore a11y-media-has-caption -->
+            <video
+              style="margin-top: 10px"
+              controls
+              poster={file.spectrogram_url}
+              preload="none"
+              title={file.audio_url}><source src={file.audio_url} /></video
+            >
+          </div>
+        {/if}
       {/each}
     {:catch error}
       {error.message}

@@ -1,6 +1,5 @@
 use anyhow::Result;
-use http_cache_reqwest::{CACacheManager, Cache, CacheMode, HttpCache};
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use reqwest_middleware::ClientWithMiddleware;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
@@ -29,15 +28,7 @@ pub struct FlickrClient {
 }
 
 impl FlickrClient {
-    pub fn new(api_key: &str) -> Self {
-        let http = ClientBuilder::new(reqwest::Client::new())
-            .with(Cache(HttpCache {
-                mode: CacheMode::OnlyIfCached,
-                manager: CACacheManager::default(),
-                options: None,
-            }))
-            .build();
-
+    pub fn new(api_key: &str, http: ClientWithMiddleware) -> Self {
         Self {
             http,
             api_key: api_key.into(),
