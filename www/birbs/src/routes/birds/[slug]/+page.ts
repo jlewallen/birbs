@@ -3,10 +3,14 @@ import _ from "lodash";
 
 $: if (browser) document.body.classList.toggle('green', false);
 
-export async function load({ params }) {
+export async function load({ fetch, params }) {
   console.log("bird-slug", params.slug);
 
-  // http://192.168.0.164/By_Date/2023-04-11/Trumpeter_Swan/Trumpeter_Swan-85-2023-04-11-birdnet-20:15:10.mp3
+  const daily = fetch(`http://127.0.0.1:3100/${params.slug}/daily.json`)
+    .then((res) => res.json());
+
+  const hourly = fetch(`http://127.0.0.1:3100/${params.slug}/hourly.json`)
+    .then((res) => res.json());
 
   const files = fetch(`http://127.0.0.1:3100/${params.slug}/files.json`)
     .then((res) => res.json())
@@ -35,11 +39,14 @@ export async function load({ params }) {
         .value()
       };
     });
+
   return {
     bird: {
       common_name: params.slug,
       photo_url: `http://127.0.0.1:3100/${params.slug}/photo.png`,
     },
-    files: files,
+    files,
+    hourly,
+    daily,
   };
 }

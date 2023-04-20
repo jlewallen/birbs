@@ -5,7 +5,7 @@ use axum::{
     routing::get,
     Extension, Json, Router,
 };
-use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Utc};
 use chrono_tz::{Tz, US::Pacific};
 
 use http_cache::{CACacheManager, CacheMode, HttpCache};
@@ -248,6 +248,68 @@ impl BirdDb {
             .collect::<Result<Vec<Detection>>>()?)
     }
 
+    fn daily_detections(&self, common_name: &str) -> Result<Vec<Daily>> {
+        let mut stmt = self.conn.prepare(
+            r"
+            SELECT date, COUNT(*) FROM detections
+            WHERE com_name = ?
+            GROUP BY date
+            ORDER BY date
+            ",
+        )?;
+
+        let daily = stmt.query_map([common_name], |row| {
+            let date = BirdDateAndTime::new_date_only(row.get(0)?).or_else(|_| {
+                Err(rusqlite::Error::InvalidParameterName(
+                    "DATE and TIME".into(),
+                ))
+            })?;
+
+            Ok(Daily {
+                date: date.into(),
+                detections: row.get(1)?,
+            })
+        })?;
+
+        Ok(daily
+            .into_iter()
+            .map(|row| Ok(row?))
+            .collect::<Result<Vec<Daily>>>()?)
+    }
+
+    fn hourly_detections(&self, common_name: &str) -> Result<Vec<Hourly>> {
+        let mut stmt = self.conn.prepare(
+            r"
+            SELECT q.hour, COUNT(q.hour) FROM (
+                SELECT com_name, strftime('%H:00:00', time) AS hour FROM detections
+                WHERE com_name = ?
+            ) AS q
+            GROUP BY q.hour
+            ORDER BY q.hour
+            ",
+        )?;
+
+        let hourly = stmt.query_map([common_name], |row| {
+            let time: String = row.get(0)?;
+            let time = NaiveTime::parse_from_str(&time, "%H:%M:%S").or_else(|_| {
+                Err(rusqlite::Error::InvalidParameterName(
+                    "DATE and TIME".into(),
+                ))
+            })?;
+
+            Ok(Hourly {
+                time,
+                number: time.hour(),
+                detections: row.get(1)?,
+            })
+        })?;
+
+        Ok(hourly
+            .into_iter()
+            .map(|row| Ok(row?))
+            .collect::<Result<Vec<Hourly>>>()?)
+    }
+
     fn summarize_detections(&self, common_name: &str) -> Result<DetectionsSummary> {
         let mut stmt = self
             .conn
@@ -368,6 +430,39 @@ async fn check_available(files: Vec<FilesFor>) -> Result<Vec<FilesFor>> {
 }
 
 #[derive(Serialize)]
+struct Daily {
+    date: DateTime<Utc>,
+    detections: u64,
+}
+
+#[derive(Serialize)]
+struct Hourly {
+    number: u32,
+    time: NaiveTime,
+    detections: u64,
+}
+
+#[axum_macros::debug_handler]
+async fn hourly_for(Path(common_name): Path<String>) -> Result<Json<Vec<Hourly>>, StatusCode> {
+    let db = BirdDb::new().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let detections = db
+        .hourly_detections(&common_name)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(detections))
+}
+
+#[axum_macros::debug_handler]
+async fn daily_for(Path(common_name): Path<String>) -> Result<Json<Vec<Daily>>, StatusCode> {
+    let db = BirdDb::new().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let detections = db
+        .daily_detections(&common_name)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(detections))
+}
+
+#[derive(Serialize)]
 struct FilesResponse {
     detections: DetectionsSummary,
     files: Vec<FilesFor>,
@@ -443,6 +538,8 @@ async fn main() -> Result<()> {
     let _by_day_and_common_name = db.by_day_and_common_name()?;
     let _common_name_to_scientific_name = db.common_name_to_scientific_name()?;
     let _files_for = db.files_for("American Crow")?;
+    let _hourly = db.hourly_detections("American Crow")?;
+    let _daily = db.daily_detections("American Crow")?;
 
     // let flickr = flickr::FlickrClient::new(&get_flickr_api_key()?);
     // let photos = flickr.search("Chestnut-rumped Thornbill").await?;
@@ -466,6 +563,8 @@ async fn main() -> Result<()> {
         .route("/by-common-name.json", get(by_common_name))
         .route("/by-day-and-common-name.json", get(by_day_and_common_name))
         .route("/:common-name/files.json", get(files_for))
+        .route("/:common-name/hourly.json", get(hourly_for))
+        .route("/:common-name/daily.json", get(daily_for))
         .route("/:common-name/photo.png", get(photo_for))
         .layer(cors)
         .layer(
