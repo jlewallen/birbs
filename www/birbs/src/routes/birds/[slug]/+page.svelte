@@ -18,7 +18,7 @@
   );
 
   const days = (end - start) / 86400 / 1000;
-  const dates = _.range(0, days).map((days) => {
+  const dates = _.range(0, days + 1).map((days) => {
     const date = new Date(start);
     date.setDate(date.getDate() + days);
     return dateToString(date);
@@ -198,7 +198,9 @@
         {#if file.available}
           <div class="file">
             <div class="header">
-              <div class="when">{file.when}</div>
+              <div class="when">
+                {moment(file.when).format("dddd, MMMM Do YYYY, h:mm:ss a")}
+              </div>
               <div class="confidence">
                 {file.confidence}
               </div>
@@ -231,6 +233,18 @@
     display: flex;
     flex-direction: row;
     justify-content: space-between;
+    align-items: end;
+  }
+
+  .confidence {
+    color: darkgreen;
+    font-size: 14px;
+    margin-right: 2em;
+  }
+
+  .when {
+    margin-left: 1.5em;
+    font-size: 14pt;
   }
 
   #hourly {
@@ -259,7 +273,7 @@
 
   .details-row .photo img {
     border: 1px solid #0d0d0d;
-    object-fit: scale-down;
+    /* object-fit: scale-down; */
     width: 100%;
   }
 
@@ -274,5 +288,10 @@
 
   .file {
     margin-top: 1em;
+  }
+  .file .video {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 </style>

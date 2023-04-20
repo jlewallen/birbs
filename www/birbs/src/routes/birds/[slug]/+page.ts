@@ -34,8 +34,6 @@ export async function load({ fetch, params }) {
             available: row.available,
           };
         })
-        .orderBy((row) => row.when)
-        .reverse()
         .value()
       };
     });
