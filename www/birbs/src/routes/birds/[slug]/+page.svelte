@@ -67,9 +67,13 @@
   }
 
   function hourlyChart() {
+    const totalDetections = _.sum(
+      _.map(_.flatten(_.values(byHour)), (h) => h.detections)
+    );
+
     const detections = _.range(0, 24).map(function (i) {
       if (byHour[i]) {
-        return byHour[i][0].detections;
+        return byHour[i][0].detections / totalDetections;
       }
       return 0;
     });
