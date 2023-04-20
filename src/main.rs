@@ -128,10 +128,14 @@ struct BirdDb {
     conn: Connection,
 }
 
+fn get_database() -> Result<String> {
+    Ok(std::env::var("BIRDS_DB")?)
+}
+
 impl BirdDb {
     fn new() -> Result<Self> {
         Ok(Self {
-            conn: Connection::open("birds.db")?,
+            conn: Connection::open(get_database()?)?,
         })
     }
 
