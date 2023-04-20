@@ -10,8 +10,10 @@ export async function load({ params }) {
 
   const files = fetch(`http://127.0.0.1:3100/${params.slug}/files.json`)
     .then((res) => res.json())
-    .then((rows) => {
-      return _(rows)
+    .then((resp) => {
+      return {
+        detections: resp.detections,
+        files: _(resp.files)
         .map((row): { when: Date;
           confidence: number;
           file_name: string;
@@ -30,7 +32,8 @@ export async function load({ params }) {
         })
         .orderBy((row) => row.when)
         .reverse()
-        .value();
+        .value()
+      };
     });
   return {
     bird: {

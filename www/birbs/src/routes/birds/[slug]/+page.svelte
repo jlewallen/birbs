@@ -21,7 +21,9 @@
     {#await data.files}
       Loading...
     {:then value}
-      {#each data.files as file}
+      {data.files.detections.total} Detections
+
+      {#each data.files.files as file}
         {#if file.available}
           <div>
             {file.when}

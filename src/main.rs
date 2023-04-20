@@ -119,6 +119,11 @@ impl FilesFor {
     }
 }
 
+#[derive(Serialize)]
+pub struct DetectionsSummary {
+    total: u64,
+}
+
 struct BirdDb {
     conn: Connection,
 }
@@ -243,6 +248,18 @@ impl BirdDb {
             .collect::<Result<Vec<Detection>>>()?)
     }
 
+    fn summarize_detections(&self, common_name: &str) -> Result<DetectionsSummary> {
+        let mut stmt = self
+            .conn
+            .prepare(r"SELECT COUNT(date) FROM detections WHERE com_name = ?")?;
+
+        let total_detections: u64 = stmt.query_row([common_name], |row| row.get(0))?;
+
+        Ok(DetectionsSummary {
+            total: total_detections,
+        })
+    }
+
     fn files_for(&self, common_name: &str) -> Result<Vec<FilesFor>> {
         let mut stmt = self.conn.prepare(
             r"SELECT date, time, file_name, confidence
@@ -350,9 +367,18 @@ async fn check_available(files: Vec<FilesFor>) -> Result<Vec<FilesFor>> {
         .await)
 }
 
+#[derive(Serialize)]
+struct FilesResponse {
+    detections: DetectionsSummary,
+    files: Vec<FilesFor>,
+}
+
 #[axum_macros::debug_handler]
-async fn files_for(Path(common_name): Path<String>) -> Result<Json<Vec<FilesFor>>, StatusCode> {
+async fn files_for(Path(common_name): Path<String>) -> Result<Json<FilesResponse>, StatusCode> {
     let db = BirdDb::new().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let detections = db
+        .summarize_detections(&common_name)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let files = db
         .files_for(&common_name)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -361,7 +387,7 @@ async fn files_for(Path(common_name): Path<String>) -> Result<Json<Vec<FilesFor>
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(Json(files))
+    Ok(Json(FilesResponse { detections, files }))
 }
 
 fn new_http_client() -> ClientWithMiddleware {
