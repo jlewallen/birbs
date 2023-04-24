@@ -135,7 +135,7 @@
         radialaxis: {
           tickfont_size: 15,
           showticklabels: false,
-          hoverformat: "#%{theta}: <br>Popularity: %{percent}</br> %{r}",
+          hoverformat: "%{percent}",
         },
         angularaxis: {
           tickfont_size: 15,
@@ -144,7 +144,6 @@
           tickmode: "array",
           tickvals: ticks.values,
           ticktext: ticks.text,
-          hoverformat: "#%{theta}: <br>Popularity: %{percent}</br> %{r}",
         },
       },
       margin: {},
