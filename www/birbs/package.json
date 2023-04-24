@@ -25,6 +25,7 @@
 	"dependencies": {
 		"lodash": "^4.17.21",
 		"moment": "^2.29.4",
-		"plotly.js-dist": "^2.21.0"
+		"plotly.js-dist": "^2.21.0",
+		"svelte-lazy": "^1.2.1"
 	}
 }

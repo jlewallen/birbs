@@ -1,7 +1,5 @@
 <script>
   import { page } from "$app/stores";
-  // import logo from "$lib/images/svelte-logo.svg";
-  // import github from "$lib/images/github.svg";
 </script>
 
 <header>
@@ -12,6 +10,9 @@
       <path d="M0,0 L1,2 C1.5,3 1.5,3 2,3 L2,0 Z" />
     </svg>
     <ul>
+      <li aria-current={$page.url.pathname === "/today" ? "page" : undefined}>
+        <a href="/today">Today</a>
+      </li>
       <li aria-current={$page.url.pathname === "/" ? "page" : undefined}>
         <a href="/">30-Days</a>
       </li>

@@ -5,7 +5,7 @@ import _ from "lodash";
 
 // since there's no dynamic data here, we can prerender
 // it so that it gets served as a static asset in production
-export const prerender = true;
+// export const prerender = true;
 
 function fixed_width_date(date: Date): String {
   return [

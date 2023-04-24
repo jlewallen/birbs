@@ -197,9 +197,9 @@
     {#await data.files}
       Loading...
     {:then value}
-      {#each data.files.files as file}
+      {#each value.files as file}
         {#if file.available}
-          <div class="file">
+          <div class="detection file">
             <div class="header">
               <div class="when">
                 {moment(file.when).format("dddd, MMMM Do YYYY, h:mm:ss a")}
@@ -232,26 +232,37 @@
     height: 225px;
   }
 
-  .header {
+  #hourly {
+    height: 500px;
+  }
+
+  .detection .header {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
     align-items: end;
   }
 
-  .confidence {
+  .detection .confidence {
     color: darkgreen;
     font-size: 14px;
     margin-right: 2em;
   }
 
-  .when {
+  .detection .when {
     margin-left: 1.5em;
     font-size: 14pt;
   }
 
-  #hourly {
-    height: 500px;
+  .detection,
+  .file {
+    margin-top: 1em;
+  }
+
+  .detection .video {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .details {
@@ -287,14 +298,5 @@
   .details-row .info h1 {
     margin: 0em 0em 0em 0em;
     text-align: center;
-  }
-
-  .file {
-    margin-top: 1em;
-  }
-  .file .video {
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 </style>

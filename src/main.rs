@@ -29,7 +29,7 @@ struct BirdDateAndTime {
 }
 
 impl BirdDateAndTime {
-    pub fn new_naive(date: NaiveDate, time: NaiveTime) -> Result<Self> {
+    fn new_naive(date: NaiveDate, time: NaiveTime) -> Result<Self> {
         let no_tz = NaiveDateTime::new(date, time);
         let pacific = no_tz.and_local_timezone(Pacific);
         let best_case = pacific.single();
@@ -62,7 +62,7 @@ impl Into<DateTime<Utc>> for BirdDateAndTime {
 
 #[derive(Debug)]
 #[allow(dead_code)]
-struct Detection {
+pub struct Detection {
     when: DateTime<Utc>,
     common_name: String,
     scientific_name: String,
@@ -77,7 +77,7 @@ struct Detection {
 }
 
 #[derive(Serialize, Debug)]
-struct Detections {
+pub struct Detections {
     when: DateTime<Utc>,
     common_name: String,
     scientific_name: String,
@@ -85,7 +85,7 @@ struct Detections {
 }
 
 #[derive(Serialize, Debug)]
-struct DetectionsByCommonName {
+pub struct DetectionsByCommonName {
     common_name: String,
     total: u32,
     average_confidence: f32,
@@ -93,7 +93,7 @@ struct DetectionsByCommonName {
 }
 
 #[derive(Serialize, Debug)]
-struct DetectionsByTimeAndCommonName {
+pub struct DetectionsByTimeAndCommonName {
     when: DateTime<Utc>,
     common_name: String,
     total: u32,
@@ -101,7 +101,7 @@ struct DetectionsByTimeAndCommonName {
 }
 
 #[derive(Serialize, Debug, Clone)]
-struct FilesFor {
+pub struct FilesFor {
     when: DateTime<Utc>,
     confidence: f32,
     file_name: String,
@@ -122,6 +122,26 @@ impl FilesFor {
 #[derive(Serialize)]
 pub struct DetectionsSummary {
     total: u64,
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct Recently {
+    when: DateTime<Utc>,
+    file_name: String,
+    common_name: String,
+    confidence: f32,
+    spectrogram_url: String,
+    audio_url: String,
+    available: Option<bool>,
+}
+
+impl Recently {
+    fn into_with_available(self, available: bool) -> Recently {
+        Self {
+            available: Some(available),
+            ..self
+        }
+    }
 }
 
 struct BirdDb {
@@ -382,6 +402,65 @@ impl BirdDb {
 
         Ok(files_for)
     }
+
+    fn recently(&self) -> Result<Vec<Recently>> {
+        let mut stmt = self.conn.prepare(
+            r"SELECT date, time, com_name, file_name, confidence
+             FROM detections
+             WHERE datetime(date, time) >= datetime('now', '-24 hours')
+             ORDER BY datetime(date, time) DESC",
+        )?;
+
+        let entities = stmt.query_map([], |row| {
+            let when = BirdDateAndTime::new(row.get(0)?, row.get(1)?).or_else(|_| {
+                Err(rusqlite::Error::InvalidParameterName(
+                    "DATE and TIME".into(),
+                ))
+            })?;
+
+            let date_string = when.local.format("%Y-%m-%d");
+            let common_name: String = row.get(2)?;
+            let file_name: String = row.get(3)?;
+
+            fn urlify_string(i: &str) -> String {
+                i.replace(" ", "_")
+            }
+
+            let audio_url = || -> Result<String, rusqlite::Error> {
+                Ok(format!(
+                    "http://192.168.0.164/By_Date/{}/{}/{}",
+                    &date_string,
+                    urlify_string(&common_name),
+                    &file_name
+                ))
+            };
+
+            let spectrogram_url =
+                || -> Result<String, rusqlite::Error> { Ok(format!("{}.png", audio_url()?)) };
+
+            let spectrogram_url = spectrogram_url()?;
+            let audio_url = audio_url()?;
+            let when = when.into();
+            let confidence = row.get(4)?;
+
+            Ok(Recently {
+                when,
+                common_name,
+                file_name,
+                confidence,
+                spectrogram_url,
+                audio_url,
+                available: None,
+            })
+        })?;
+
+        let recently = entities
+            .into_iter()
+            .map(|row| Ok(row?)) // TODO Yeah, gross. Error types?
+            .collect::<Result<Vec<_>>>()?;
+
+        Ok(recently)
+    }
 }
 
 #[axum_macros::debug_handler]
@@ -411,17 +490,39 @@ async fn by_day_and_common_name() -> Result<Json<Vec<DetectionsByTimeAndCommonNa
     ))
 }
 
-async fn check_file_available(file: FilesFor) -> FilesFor {
-    match new_http_client().head(&file.spectrogram_url).send().await {
+async fn head_url(url: &str) -> bool {
+    match new_http_client().head(url).send().await {
         Ok(r) => match r.status() {
-            StatusCode::OK => file.into_with_available(true),
-            _ => file.into_with_available(false),
+            StatusCode::OK => true,
+            _ => false,
         },
-        Err(_) => file.into_with_available(false),
+        Err(_) => false,
     }
 }
 
-async fn check_available(files: Vec<FilesFor>) -> Result<Vec<FilesFor>> {
+async fn check_recently_available(file: Recently) -> Recently {
+    let available = head_url(&file.spectrogram_url).await && head_url(&file.audio_url).await;
+    file.into_with_available(available)
+}
+
+async fn check_recentlies_available(files: Vec<Recently>) -> Result<Vec<Recently>> {
+    use futures::StreamExt;
+    use tokio_stream::{self as stream};
+
+    const CONCURRENT_REQUESTS: usize = 5;
+    Ok(stream::iter(files.into_iter())
+        .map(|row| check_recently_available(row))
+        .buffered(CONCURRENT_REQUESTS)
+        .collect::<Vec<_>>()
+        .await)
+}
+
+async fn check_file_available(file: FilesFor) -> FilesFor {
+    let available = head_url(&file.spectrogram_url).await && head_url(&file.audio_url).await;
+    file.into_with_available(available)
+}
+
+async fn check_files_available(files: Vec<FilesFor>) -> Result<Vec<FilesFor>> {
     use futures::StreamExt;
     use tokio_stream::{self as stream};
 
@@ -482,11 +583,30 @@ async fn files_for(Path(common_name): Path<String>) -> Result<Json<FilesResponse
         .files_for(&common_name)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let files = check_available(files)
+    let files = check_files_available(files)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(FilesResponse { detections, files }))
+}
+
+#[derive(Serialize)]
+struct RecentlyResponse {
+    detections: Vec<Recently>,
+}
+
+#[axum_macros::debug_handler]
+async fn recently() -> Result<Json<RecentlyResponse>, StatusCode> {
+    let db = BirdDb::new().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let detections = db
+        .recently()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let detections = check_recentlies_available(detections)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(RecentlyResponse { detections }))
 }
 
 fn new_http_client() -> ClientWithMiddleware {
@@ -544,6 +664,7 @@ async fn main() -> Result<()> {
     let _files_for = db.files_for("American Crow")?;
     let _hourly = db.hourly_detections("American Crow")?;
     let _daily = db.daily_detections("American Crow")?;
+    let _recently = db.recently()?;
 
     // let flickr = flickr::FlickrClient::new(&get_flickr_api_key()?);
     // let photos = flickr.search("Chestnut-rumped Thornbill").await?;
@@ -564,6 +685,7 @@ async fn main() -> Result<()> {
             "/common-name-to-scientific-name.json",
             get(common_name_to_scientific_name),
         )
+        .route("/recently.json", get(recently))
         .route("/by-common-name.json", get(by_common_name))
         .route("/by-day-and-common-name.json", get(by_day_and_common_name))
         .route("/:common-name/files.json", get(files_for))

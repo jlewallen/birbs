@@ -1,6 +1,4 @@
 <script>
-  import Today from "./Today.svelte";
-
   /** @type {import('./$types').PageData} */
   export let data;
 </script>
@@ -14,9 +12,7 @@
   {#await data.query}
     Loading...
   {:then value}
-    <Today />
-
-    {#each data.query as day}
+    {#each value as day}
       <div>
         <h4>{day.date.toDateString()}</h4>
         <div>
