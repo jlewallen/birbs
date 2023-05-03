@@ -2,7 +2,7 @@
     import { page } from "$app/stores";
 </script>
 
-<div>Hello</div>
+<div />
 
 <style>
 </style>

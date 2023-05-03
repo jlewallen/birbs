@@ -1,104 +1,57 @@
 <script>
   import moment from "moment";
-  import Today from "./Today.svelte";
-  import Lazy from "svelte-lazy";
+  import DetectionFile from "../DetectionFile.svelte";
+  import DetectionRow from "../DetectionRow.svelte";
 
   /** @type {import('./$types').PageData} */
   export let data;
 </script>
 
 <svelte:head>
-  <title>Today</title>
+  <title>24h</title>
 </svelte:head>
 
 <div>
-  <h1>Today</h1>
+  <h1>24h</h1>
 
   <div class="body">
     {#await data.recently}
       Loading...
     {:then value}
-      {#each value.detections as file}
-        {#if file.available}
-          <div class="detection file">
-            <div class="header">
-              <div class="row">
-                <div class="name">
-                  {file.common_name}
-                </div>
-              </div>
-              <div class="row">
-                <div class="sub">
-                  <div class="when">
-                    {moment(file.when).format("dddd, MMMM Do YYYY, h:mm:ss a")}
-                  </div>
-                  <div class="confidence">
-                    {file.confidence}
-                  </div>
-                </div>
-              </div>
+      <div class="summarized">
+        {#each value.summarized as species}
+          <div class="species">
+            <div class="name">
+              <a href="/birds/{species.common_name}">{species.common_name}</a>
+              (<span class="total-24h">{species.total_24h}</span>)
             </div>
-            <div class="video">
-              <Lazy height={600}>
-                <!-- svelte-ignore a11y-media-has-caption -->
-                <video
-                  style="margin-top: 10px"
-                  controls
-                  poster={file.spectrogram_url}
-                  preload="none"
-                  title={file.audio_url}><source src={file.audio_url} /></video
-                >
-              </Lazy>
+            <div class="interesting-detection last">
+              <DetectionRow file={species.last} />
+              <DetectionFile file={species.last} />
+            </div>
+            <div class="interesting-detection best">
+              <DetectionRow file={species.best} />
+              <DetectionFile file={species.best} />
             </div>
           </div>
-        {/if}
-      {/each}
+        {/each}
+      </div>
     {:catch error}
       {error.message}
     {/await}
   </div>
-
-  <Today />
 </div>
 
 <style>
-  .detection,
-  .file {
-    margin-top: 1em;
+  .body {
+    width: 940px;
   }
 
-  .detection .row {
-    display: flex;
-    flex-direction: column;
+  .species {
+    margin-bottom: 1em;
   }
 
-  .detection .sub {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: end;
-  }
-
-  .detection .header .name {
-    font-size: 18pt;
-    margin-left: 1em;
-    margin-bottom: 0.25em;
-  }
-
-  .detection .confidence {
-    color: darkgreen;
-    font-size: 14px;
-    margin-right: 2em;
-  }
-
-  .detection .when {
-    margin-left: 1.5em;
-    font-size: 14pt;
-  }
-
-  .detection .video {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .species .interesting-detection {
+    margin-top: 0.5em;
   }
 </style>

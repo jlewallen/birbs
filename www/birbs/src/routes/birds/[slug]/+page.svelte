@@ -1,5 +1,7 @@
 <script>
   import { onMount } from "svelte";
+  import Lazy from "svelte-lazy";
+  import DetectionFile from "../../DetectionFile.svelte";
   import moment from "moment";
   import _ from "lodash";
 
@@ -174,7 +176,7 @@
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </svelte:head>
 
-<section>
+<section class="body">
   <div id="daily" />
 
   <div class="details">
@@ -193,32 +195,25 @@
     </div>
   </div>
 
-  <div class="body">
+  <div>
     {#await data.files}
       Loading...
     {:then value}
       {#each value.files as file}
         {#if file.available}
-          <div class="detection file">
-            <div class="header">
-              <div class="when">
-                {moment(file.when).format("dddd, MMMM Do YYYY, h:mm:ss a")}
+          <Lazy height={600}>
+            <div class="detection file">
+              <div class="header">
+                <div class="when">
+                  {moment(file.when).format("dddd, MMMM Do YYYY, h:mm:ss a")}
+                </div>
+                <div class="confidence">
+                  {file.confidence}
+                </div>
               </div>
-              <div class="confidence">
-                {file.confidence}
-              </div>
+              <DetectionFile {file} />
             </div>
-            <div class="video">
-              <!-- svelte-ignore a11y-media-has-caption -->
-              <video
-                style="margin-top: 10px"
-                controls
-                poster={file.spectrogram_url}
-                preload="none"
-                title={file.audio_url}><source src={file.audio_url} /></video
-              >
-            </div>
-          </div>
+          </Lazy>
         {/if}
       {/each}
     {:catch error}
@@ -228,6 +223,10 @@
 </section>
 
 <style>
+  .body {
+    width: 940px;
+  }
+
   #daily {
     height: 225px;
   }
@@ -246,23 +245,15 @@
   .detection .confidence {
     color: darkgreen;
     font-size: 14px;
-    margin-right: 2em;
   }
 
   .detection .when {
-    margin-left: 1.5em;
     font-size: 14pt;
   }
 
   .detection,
   .file {
     margin-top: 1em;
-  }
-
-  .detection .video {
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 
   .details {

@@ -11,7 +11,7 @@
     </svg>
     <ul>
       <li aria-current={$page.url.pathname === "/today" ? "page" : undefined}>
-        <a href="/today">Today</a>
+        <a href="/today">24h</a>
       </li>
       <li aria-current={$page.url.pathname === "/" ? "page" : undefined}>
         <a href="/">30-Days</a>
