@@ -159,9 +159,11 @@ async fn recently() -> Result<Json<RecentlyResponse>, StatusCode> {
         .recently()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    /*
     let detections = check_recentlies_available(detections)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    */
 
     Ok(Json(RecentlyResponse { detections }))
 }
