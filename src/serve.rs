@@ -2,12 +2,15 @@ use anyhow::Result;
 use axum::extract::Path;
 use axum::{http::Method, routing::get, Extension, Router};
 use axum::{http::StatusCode, Json};
-use http_cache::{CACacheManager, CacheMode, HttpCache};
+use http_cache::{CACacheManager, CacheMode, HttpCache, HttpCacheOptions};
 use http_cache_reqwest::Cache;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use serde::Serialize;
+use tokio::net::TcpListener;
+use tokio::signal::{self};
 
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::{
     cors::{Any, CorsLayer},
@@ -67,14 +70,43 @@ pub async fn execute() -> Result<()> {
         )
         .layer(Extension(app_state));
 
-    info!("listening on 0.0.0.0:3100");
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3100));
+    info!("listening on {:?}", addr);
 
-    axum::Server::bind(&"0.0.0.0:3100".parse().unwrap())
-        .serve(app.into_make_service())
+    axum::serve(TcpListener::bind(&addr).await?, app.into_make_service())
+        .with_graceful_shutdown(shutdown_signal())
         .await
         .unwrap();
 
     Ok(())
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+
+    println!();
+
+    info!("signal received, starting graceful shutdown");
 }
 
 #[axum_macros::debug_handler]
@@ -159,11 +191,13 @@ async fn recently() -> Result<Json<RecentlyResponse>, StatusCode> {
         .recently()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    /*
-    let detections = check_recentlies_available(detections)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    */
+    let detections = if false {
+        check_recentlies_available(detections)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    } else {
+        detections
+    };
 
     Ok(Json(RecentlyResponse { detections }))
 }
@@ -173,7 +207,7 @@ fn new_http_client() -> ClientWithMiddleware {
         .with(Cache(HttpCache {
             mode: CacheMode::ForceCache,
             manager: CACacheManager::default(),
-            options: None,
+            options: HttpCacheOptions::default(),
         }))
         .build();
 }

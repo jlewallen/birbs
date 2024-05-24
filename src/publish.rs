@@ -168,7 +168,7 @@ impl Into<InfluxLineProtocol> for LogEntry {
             "birds,station=backyard {}={} {}",
             self.common_name.replace(" ", "\\ "),
             self.confidence,
-            self.date_time.timestamp_nanos()
+            self.date_time.timestamp_nanos_opt().unwrap()
         ))
     }
 }

@@ -6,27 +6,30 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.70"
-axum = "0.6.12"
-axum-macros = "0.3.7"
-chrono = { version = "0.4.24", features = ["serde"] }
-chrono-tz = "0.8.1"
-clap = { version = "4.4.8", features = ["derive"] }
-futures = "0.3.28"
-http-cache = "0.11.0"
-http-cache-reqwest = "0.9.0"
-influxdb2 = "0.4.4"
-itertools = "0.10.5"
-just = "1.13.0"
+anyhow = "1.0.86"
+axum = "0.7.5"
+axum-macros = "0.4.1"
+chrono = { version = "0.4.38", features = ["serde"] }
+chrono-tz = "0.9.0"
+clap = { version = "4.5.4", features = ["derive"] }
+futures = "0.3.30"
+http-cache = { version = "0.19.0", default-features = false, features = [
+    "cacache-tokio",
+] }
+http-cache-reqwest = "0.14.0"
+influxdb2 = "0.5.0"
+itertools = "0.13.0"
+just = "1.26.0"
 notify = "6.1.1"
-reqwest = { version = "0.11.16", features = ["json"] }
-reqwest-middleware = "0.2.1"
-rusqlite = "0.29.0"
-serde = { version = "1.0.159", features = ["derive"] }
-serde_json = "1.0.95"
-tokio = { version = "1.27.0", features = ["full"] }
-tokio-stream = "0.1.12"
-tower-http = { version = "0.4.0", features = ["fs", "trace", "cors"] }
-tracing = "0.1.37"
-tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
+reqwest = { version = "0.12.4", features = ["json"] }
+reqwest-middleware = "0.3.1"
+rusqlite = { version = "0.31.0", features = ["bundled"] }
+serde = { version = "1.0.202", features = ["derive"] }
+serde_json = "1.0.117"
+tokio = { version = "1.37.0", features = ["full"] }
+tokio-stream = "0.1.15"
+tower-http = { version = "0.5.2", features = ["fs", "trace", "cors"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 uri-builder = "0.1.0"
+openssl = { version = "0.10.64", features = ["vendored"] }
