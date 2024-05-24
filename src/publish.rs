@@ -149,6 +149,7 @@ pub struct LogEntry {
     confidence: f64,
 }
 
+#[allow(dead_code)]
 pub struct InfluxLineProtocol(String);
 
 impl Into<DataPoint> for LogEntry {
